@@ -10,8 +10,8 @@ class MainWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("MySQL Context Manager")
-        self.root.geometry("1000x600")
-        self.root.minsize(800, 500)
+        self.root.geometry("1200x700")
+        self.root.minsize(900, 500)
         
         # 初始化服务管理器和环境处理器
         self.service_manager = MySQLServiceManager()
@@ -24,11 +24,11 @@ class MainWindow:
         
         # 统一字体配置
         self.fonts = {
-            "title": ctk.CTkFont(size=20, weight="bold"),
-            "subtitle": ctk.CTkFont(size=16, weight="bold"),
-            "body": ctk.CTkFont(size=14),
-            "button": ctk.CTkFont(size=14),
-            "small": ctk.CTkFont(size=12)
+            "title": ctk.CTkFont(family="Microsoft YaHei UI", size=20, weight="bold"),
+            "subtitle": ctk.CTkFont(family="Microsoft YaHei UI", size=16, weight="bold"),
+            "body": ctk.CTkFont(family="Microsoft YaHei UI", size=14),
+            "button": ctk.CTkFont(family="Microsoft YaHei UI", size=14),
+            "small": ctk.CTkFont(family="Microsoft YaHei UI", size=12)
         }
         
         # 获取当前激活的环境
@@ -103,12 +103,12 @@ class MainWindow:
             
             # 检查是否为当前环境
             is_current = self.current_env == mysql_config["path"]
-            font = ctk.CTkFont(size=14, weight="bold" if is_current else "normal")
+            font = ctk.CTkFont(family="Microsoft YaHei UI", size=14, weight="bold" if is_current else "normal")
             
             name_label = ctk.CTkLabel(status_frame, text=mysql_config["name"], font=font)
             name_label.pack(side="left")
             
-            status_indicator = ctk.CTkLabel(status_frame, text="●", font=ctk.CTkFont(size=16))
+            status_indicator = ctk.CTkLabel(status_frame, text="●", font=ctk.CTkFont(family="Microsoft YaHei UI", size=16))
             status_indicator.pack(side="right")
             
             self.status_frames.append((mysql_config["service_name"], status_indicator, name_label))
@@ -152,7 +152,7 @@ class MainWindow:
         info_frame = ctk.CTkFrame(card_frame, fg_color="transparent")
         info_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
         
-        # 使用更灵活的grid布局，确保路径信息正确显示
+        # 路径信息
         info_frame.grid_columnconfigure(0, weight=0, minsize=80)
         info_frame.grid_columnconfigure(1, weight=0, minsize=80)
         info_frame.grid_columnconfigure(2, weight=1)
@@ -160,7 +160,7 @@ class MainWindow:
         version_label = ctk.CTkLabel(info_frame, text=f"版本: {mysql_config['version']}", font=self.fonts["body"])
         version_label.grid(row=0, column=0, padx=(0, 20), sticky="w")
         
-        port_label = ctk.CTkLabel(info_frame, text=f"端口: {mysql_config['port']}", font=self.fonts["body"])
+        port_label = ctk.CTkLabel(info_frame, text=f"PORT: {mysql_config['port']}", font=self.fonts["body"])
         port_label.grid(row=0, column=1, padx=(0, 20), sticky="w")
         
         # 使用自动换行的标签显示路径信息
@@ -171,6 +171,8 @@ class MainWindow:
         # 服务控制按钮
         control_frame = ctk.CTkFrame(card_frame, fg_color="transparent")
         control_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(15, 20))
+        
+        # 添加一个权重列，将按钮推到右边
         control_frame.grid_columnconfigure(0, weight=1)
         
         # 添加控制按钮
@@ -179,32 +181,32 @@ class MainWindow:
                                                                      args=(mysql_config["service_name"], 
                                                                            self.service_manager.start_service, 
                                                                            start_button)).start())
-        start_button.grid(row=0, column=0, padx=(0, 10))
+        start_button.grid(row=0, column=1, padx=(0, 10))
         
         stop_button = ctk.CTkButton(control_frame, text="停止服务", font=self.fonts["button"], 
                                    command=lambda: threading.Thread(target=self.perform_service_action,
                                                                     args=(mysql_config["service_name"], 
                                                                           self.service_manager.stop_service, 
                                                                           stop_button)).start())
-        stop_button.grid(row=0, column=1, padx=(0, 10))
+        stop_button.grid(row=0, column=2, padx=(0, 10))
         
         restart_button = ctk.CTkButton(control_frame, text="重启服务", font=self.fonts["button"], 
                                       command=lambda: threading.Thread(target=self.perform_service_action,
                                                                        args=(mysql_config["service_name"], 
                                                                              self.service_manager.restart_service, 
                                                                              restart_button)).start())
-        restart_button.grid(row=0, column=2, padx=(0, 10))
+        restart_button.grid(row=0, column=3, padx=(0, 10))
         
         # 编辑按钮
         edit_button = ctk.CTkButton(control_frame, text="编辑", font=self.fonts["button"], 
                                    command=lambda: self.open_edit_dialog(mysql_config, index))
-        edit_button.grid(row=0, column=3, padx=(0, 10))
+        edit_button.grid(row=0, column=4, padx=(0, 10))
         
         # 删除按钮
         delete_button = ctk.CTkButton(control_frame, text="删除", font=self.fonts["button"], 
                                      fg_color="#D32F2F", hover_color="#B71C1C",
                                      command=lambda: self.delete_version(mysql_config, index))
-        delete_button.grid(row=0, column=4)
+        delete_button.grid(row=0, column=5)
         
         # 返回创建的卡片帧
         return card_frame
@@ -357,22 +359,20 @@ class MainWindow:
         self.name_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
         self.name_entry.grid(row=0, column=1, padx=20, pady=(20, 10))
         
-        # 版本 - 改为只读
+        # 版本 - 标签显示
         version_label = ctk.CTkLabel(dialog, text="版本:", width=label_width, font=self.fonts["body"])
         version_label.grid(row=1, column=0, padx=20, pady=10, sticky="w")
-        self.version_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
-        self.version_entry.configure(state="readonly")  # 设置为只读
-        self.version_entry.grid(row=1, column=1, padx=20, pady=10)
+        self.version_label = ctk.CTkLabel(dialog, text="", width=entry_width, font=self.fonts["body"])
+        self.version_label.grid(row=1, column=1, padx=20, pady=10, sticky="w")
         
-        # 服务名称 - 改为只读
-        service_name_label = ctk.CTkLabel(dialog, text="服务名称:", width=label_width, font=self.fonts["body"])
+        # 服务名 - 标签显示
+        service_name_label = ctk.CTkLabel(dialog, text="服务名:", width=label_width, font=self.fonts["body"])
         service_name_label.grid(row=2, column=0, padx=20, pady=10, sticky="w")
-        self.service_name_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
-        self.service_name_entry.configure(state="readonly")  # 设置为只读
-        self.service_name_entry.grid(row=2, column=1, padx=20, pady=10)
+        self.service_name_label = ctk.CTkLabel(dialog, text="", width=entry_width, font=self.fonts["body"])
+        self.service_name_label.grid(row=2, column=1, padx=20, pady=10, sticky="w")
         
         # 路径
-        path_label = ctk.CTkLabel(dialog, text="安装路径:", width=label_width, font=self.fonts["body"])
+        path_label = ctk.CTkLabel(dialog, text="路径:", width=label_width, font=self.fonts["body"])
         path_label.grid(row=3, column=0, padx=20, pady=10, sticky="w")
         self.path_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
         self.path_entry.grid(row=3, column=1, padx=20, pady=10)
@@ -382,7 +382,7 @@ class MainWindow:
         self.path_entry.bind("<FocusOut>", lambda event: self.auto_parse_path(dialog))
         
         # 端口
-        port_label = ctk.CTkLabel(dialog, text="端口号:", width=label_width, font=self.fonts["body"])
+        port_label = ctk.CTkLabel(dialog, text="PORT:", width=label_width, font=self.fonts["body"])
         port_label.grid(row=4, column=0, padx=20, pady=10, sticky="w")
         self.port_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
         self.port_entry.grid(row=4, column=1, padx=20, pady=10)
@@ -390,13 +390,9 @@ class MainWindow:
         # 如果是编辑模式，填充现有数据
         if mysql_config:
             self.name_entry.insert(0, mysql_config["name"])
-            # 版本和服务名设置为只读模式下的文本
-            self.version_entry.configure(state="normal")
-            self.version_entry.insert(0, mysql_config["version"])
-            self.version_entry.configure(state="readonly")
-            self.service_name_entry.configure(state="normal")
-            self.service_name_entry.insert(0, mysql_config["service_name"])
-            self.service_name_entry.configure(state="readonly")
+            # 设置版本和服务名标签文本
+            self.version_label.configure(text=mysql_config["version"])
+            self.service_name_label.configure(text=mysql_config["service_name"])
             self.path_entry.insert(0, mysql_config["path"])
             self.port_entry.insert(0, mysql_config["port"])
         
@@ -442,30 +438,21 @@ class MainWindow:
             # 生成服务名
             service_name = self.env_handler.generate_service_name(version)
             
-            # 更新版本号和服务名输入框（需要先临时解除只读状态）
-            self.version_entry.configure(state="normal")
-            self.version_entry.delete(0, "end")
-            self.version_entry.insert(0, version)
-            self.version_entry.configure(state="readonly")
+            # 更新版本号和服务名标签
+            self.version_label.configure(text=version)
             
-            self.service_name_entry.configure(state="normal")
-            self.service_name_entry.delete(0, "end")
             if service_name:
-                self.service_name_entry.insert(0, service_name)
-            self.service_name_entry.configure(state="readonly")
+                self.service_name_label.configure(text=service_name)
+            else:
+                self.service_name_label.configure(text="")
         else:
             # 显示版本解析错误
             error_label = ctk.CTkLabel(dialog, text="无法从路径中识别MySQL版本号", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             
-            # 清空版本号和服务名
-            self.version_entry.configure(state="normal")
-            self.version_entry.delete(0, "end")
-            self.version_entry.configure(state="readonly")
-            
-            self.service_name_entry.configure(state="normal")
-            self.service_name_entry.delete(0, "end")
-            self.service_name_entry.configure(state="readonly")
+            # 清空版本号和服务名标签
+            self.version_label.configure(text="")
+            self.service_name_label.configure(text="")
         
     def save_mysql_config(self, dialog, mysql_config, index):
         """
@@ -531,16 +518,9 @@ class MainWindow:
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             return
         
-        # 更新显示的版本号和服务名（确保保存的是最新解析的结果）
-        self.version_entry.configure(state="normal")
-        self.version_entry.delete(0, "end")
-        self.version_entry.insert(0, version)
-        self.version_entry.configure(state="readonly")
-        
-        self.service_name_entry.configure(state="normal")
-        self.service_name_entry.delete(0, "end")
-        self.service_name_entry.insert(0, service_name)
-        self.service_name_entry.configure(state="readonly")
+        # 更新显示的版本号和服务名标签（确保保存的是最新解析的结果）
+        self.version_label.configure(text=version)
+        self.service_name_label.configure(text=service_name)
         
         # 创建新配置
         new_config = {
@@ -668,5 +648,3 @@ class MainWindow:
         
         # 重新创建侧边栏内容
         self.create_sidebar_content()
-
-# 其他方法保持不变

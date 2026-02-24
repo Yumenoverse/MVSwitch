@@ -29,7 +29,7 @@ def main():
         y = int((error_window.winfo_screenheight()/2) - (height/2))
         error_window.geometry(f"{width}x{height}+{x}+{y}")
         
-        error_label = ctk.CTkLabel(error_window, text="错误：需要管理员权限运行此应用！", font=ctk.CTkFont(size=14, weight="bold"))
+        error_label = ctk.CTkLabel(error_window, text="错误：需要管理员权限运行此应用！", font=ctk.CTkFont(family="Microsoft YaHei UI", size=14, weight="bold"))
         error_label.pack(pady=20, padx=20)
         
         ok_button = ctk.CTkButton(error_window, text="确定", command=lambda: sys.exit(1))
