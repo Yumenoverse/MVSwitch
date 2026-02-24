@@ -48,13 +48,19 @@ class MainWindow:
         # 刷新服务状态
         self.refresh_service_status()
     
+    def get_config_path(self):
+        """
+        获取配置文件的绝对路径
+        """
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+    
     def load_config(self):
         """
         加载配置文件
         """
         try:
             # 使用绝对路径加载配置文件
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+            config_path = self.get_config_path()
             with open(config_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
@@ -326,7 +332,7 @@ class MainWindow:
         main_height = current_y
         log_height = self.window_height - current_y
         
-        # 将高度比例转换为权重（使用整数，*100以获得更精细的调整）
+        # 将高度比例转换为权重
         total_height = main_height + log_height
         new_main_weight = int((main_height / total_height) * 1000)
         new_log_weight = 1000 - new_main_weight  # 总权重固定为1000
@@ -339,7 +345,7 @@ class MainWindow:
         self.main_content_weight = new_main_weight
         self.log_panel_weight = new_log_weight
         
-        # 应用新的行权重（必须是整数）
+        # 应用新的行权重
         self.root.grid_rowconfigure(0, weight=new_main_weight)
         self.root.grid_rowconfigure(2, weight=new_log_weight)
     
@@ -369,12 +375,8 @@ class MainWindow:
                     version = config["version"]
                     break
             
-            if version:
-                # 如果有版本号，传递给action_func
-                success, message = action_func(service_name, version)
-            else:
-                # 兼容旧版调用方式
-                success, message = action_func(service_name)
+            # 直接传递版本号（可能为None），所有服务操作方法都支持
+            success, message = action_func(service_name, version)
             
             # 记录日志
             logging.info(message)
@@ -416,7 +418,7 @@ class MainWindow:
         """
         # 创建对话框
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("编辑MySQL配置" if mysql_config else "添加MySQL配置")
+        dialog.title("编辑 MySQL 配置" if mysql_config else "添加MySQL配置")
         dialog.resizable(False, False)
         dialog.attributes("-topmost", True)
         
@@ -530,7 +532,7 @@ class MainWindow:
                 dialog.controls["service_name_display_label"].configure(text="")
         else:
             # 显示版本解析错误
-            error_label = ctk.CTkLabel(dialog, text="无法从路径中识别MySQL版本号", text_color="red", font=self.fonts["body"])
+            error_label = ctk.CTkLabel(dialog, text="无法从路径中识别 MySQL 版本号", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             
             # 清空版本号和服务名标签
@@ -554,11 +556,11 @@ class MainWindow:
             if isinstance(widget, ctk.CTkLabel) and widget.cget("text_color") == "red":
                 widget.destroy()
         
-        # 从路径中重新提取版本号和生成服务名（确保最新）
+        # 从路径中重新提取版本号和生成服务名
         version = self.env_handler.extract_version_from_path(path)
         if not version:
             # 显示版本解析错误
-            error_label = ctk.CTkLabel(dialog, text="无法从路径中识别MySQL版本号，请检查路径格式", text_color="red", font=self.fonts["body"])
+            error_label = ctk.CTkLabel(dialog, text="无法从路径中识别 MySQL 版本号，请检查路径格式", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             return
         
@@ -589,14 +591,14 @@ class MainWindow:
         
         # 验证路径是否存在
         if not os.path.exists(path):
-            error_label = ctk.CTkLabel(dialog, text="MySQL安装路径不存在", text_color="red", font=self.fonts["body"])
+            error_label = ctk.CTkLabel(dialog, text="MySQL 安装路径不存在", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             return
         
         # 验证是否包含mysqld.exe
         mysqld_path = os.path.join(path, "bin", "mysqld.exe")
         if not os.path.exists(mysqld_path):
-            error_label = ctk.CTkLabel(dialog, text="该路径下未找到mysqld.exe", text_color="red", font=self.fonts["body"])
+            error_label = ctk.CTkLabel(dialog, text="该路径下未找到 mysqld.exe", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             return
         
@@ -624,7 +626,7 @@ class MainWindow:
         # 保存到文件
         try:
             # 使用绝对路径保存配置文件
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+            config_path = self.get_config_path()
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
             
@@ -693,7 +695,7 @@ class MainWindow:
         # 保存到文件
         try:
             # 使用绝对路径保存配置文件，与load_config方法保持一致
-            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+            config_path = self.get_config_path()
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
             

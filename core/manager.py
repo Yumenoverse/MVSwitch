@@ -32,6 +32,32 @@ class MySQLServiceManager:
             self.logger.error(f"获取服务状态失败: {e}")
             return "unknown"
     
+    def _setup_environment(self, version):
+        """
+        检查并设置环境变量（MYSQL_HOME和PATH）
+        :param version: MySQL版本号
+        :return: (成功标志, 消息)
+        """
+        try:
+            # 检查并设置MYSQL_HOME指向正确的版本变量
+            is_correct, current_value, expected_value = self.env_handler.check_mysql_home_pointing(version)
+            
+            if not is_correct:
+                # 设置MYSQL_HOME指向正确的版本变量
+                result, msg = self.env_handler.set_mysql_home(expected_value)
+                if not result:
+                    return False, f"设置 MYSQL_HOME失败: {msg}"
+            
+            # 检查PATH环境变量是否包含%MYSQL_HOME%\bin
+            result, msg = self.env_handler.check_and_update_path()
+            if not result:
+                self.logger.warning(f"PATH环境变量检查/更新失败: {msg}")
+            
+            return True, "环境变量设置完成"
+        except Exception as e:
+            self.logger.error(f"环境变量设置失败: {e}")
+            return False, f"环境变量设置失败: {str(e)}"
+    
     def start_service(self, service_name, version, timeout=10000):
         """
         启动MySQL服务
@@ -45,19 +71,10 @@ class MySQLServiceManager:
             if not self.env_handler.verify_admin_rights():
                 return False, "需要管理员权限才能执行此操作"
             
-            # 检查并设置MYSQL_HOME指向正确的版本变量
-            is_correct, current_value, expected_value = self.env_handler.check_mysql_home_pointing(version)
-            
-            if not is_correct:
-                # 设置MYSQL_HOME指向正确的版本变量
-                result, msg = self.env_handler.set_mysql_home(expected_value)
-                if not result:
-                    return False, f"设置MYSQL_HOME失败: {msg}"
-            
-            # 检查PATH环境变量是否包含%MYSQL_HOME%\bin
-            result, msg = self.env_handler.check_and_update_path()
+            # 设置环境变量
+            result, msg = self._setup_environment(version)
             if not result:
-                self.logger.warning(f"PATH环境变量检查/更新失败: {msg}")
+                return False, msg
             
             # 检查服务状态
             status = self.get_service_status(service_name)
@@ -108,20 +125,11 @@ class MySQLServiceManager:
             if not self.env_handler.verify_admin_rights():
                 return False, "需要管理员权限才能执行此操作"
             
-            # 如果提供了版本号，检查并设置MYSQL_HOME
+            # 设置环境变量
             if version:
-                is_correct, current_value, expected_value = self.env_handler.check_mysql_home_pointing(version)
-                
-                if not is_correct:
-                    # 设置MYSQL_HOME为版本变量的实际值
-                    result, msg = self.env_handler.set_mysql_home(expected_value)
-                    if not result:
-                        return False, f"设置MYSQL_HOME失败: {msg}"
-                
-                # 检查PATH环境变量
-                result, msg = self.env_handler.check_and_update_path()
+                result, msg = self._setup_environment(version)
                 if not result:
-                    self.logger.warning(f"PATH环境变量检查/更新失败: {msg}")
+                    return False, msg
             
             # 检查服务状态
             status = self.get_service_status(service_name)

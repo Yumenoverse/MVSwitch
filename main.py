@@ -32,7 +32,7 @@ def main():
         error_label = ctk.CTkLabel(error_window, text="错误：需要管理员权限运行此应用！", font=ctk.CTkFont(family="Microsoft YaHei UI", size=14, weight="bold"))
         error_label.pack(pady=20, padx=20)
         
-        ok_button = ctk.CTkButton(error_window, text="确定", text_color="#FFFFFF", command=lambda: sys.exit(1))
+        ok_button = ctk.CTkButton(error_window, text="确定", text_color="#FFFFFF", font=ctk.CTkFont(family="Microsoft YaHei UI", size=14), command=lambda: sys.exit(1))
         ok_button.pack(pady=10)
         
         # 聚焦对话框

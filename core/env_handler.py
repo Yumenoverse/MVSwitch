@@ -9,27 +9,36 @@ class EnvironmentHandler:
         self.logger = logging.getLogger(__name__)
         self.env_key_path = r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
     
-    def set_mysql_home(self, path):
+    def _set_environment_variable(self, var_name, value):
         """
-        设置系统环境变量MYSQL_HOME
-        :param path: MySQL安装路径
+        设置系统环境变量的公共方法
+        :param var_name: 环境变量名称
+        :param value: 环境变量值
         :return: (成功标志, 消息)
         """
         try:
             # 打开系统环境变量注册表项
             hkey = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, self.env_key_path, 0, reg.KEY_ALL_ACCESS)
             
-            # 设置MYSQL_HOME
-            reg.SetValueEx(hkey, "MYSQL_HOME", 0, reg.REG_EXPAND_SZ, path)
+            # 设置环境变量
+            reg.SetValueEx(hkey, var_name, 0, reg.REG_EXPAND_SZ, value)
             reg.CloseKey(hkey)
             
             # 广播环境变量变更消息
             self.broadcast_env_change()
             
-            return True, f"MYSQL_HOME 设置为: {path}"
+            return True, f"{var_name} 设置为: {value}"
         except Exception as e:
-            self.logger.error(f"设置MYSQL_HOME失败: {e}")
-            return False, f"设置MYSQL_HOME失败: {str(e)}"
+            self.logger.error(f"设置{var_name}失败: {e}")
+            return False, f"设置{var_name}失败: {str(e)}"
+    
+    def set_mysql_home(self, path):
+        """
+        设置系统环境变量MYSQL_HOME
+        :param path: MySQL安装路径
+        :return: (成功标志, 消息)
+        """
+        return self._set_environment_variable("MYSQL_HOME", path)
     
     def get_current_mysql_home(self):
         """
@@ -42,7 +51,7 @@ class EnvironmentHandler:
             reg.CloseKey(hkey)
             return value
         except Exception as e:
-            self.logger.error(f"获取MYSQL_HOME失败: {e}")
+            self.logger.error(f"获取 MYSQL_HOME 失败: {e}")
             return None
     
     def broadcast_env_change(self):
@@ -72,7 +81,7 @@ class EnvironmentHandler:
             reg.CloseKey(hkey)
             return value
         except Exception as e:
-            self.logger.error(f"获取PATH环境变量失败: {e}")
+            self.logger.error(f"获取 PATH 环境变量失败: {e}")
             return None
     
     def check_and_update_path(self):
@@ -84,7 +93,7 @@ class EnvironmentHandler:
             # 获取当前PATH
             current_path = self.get_path()
             if current_path is None:
-                return False, "无法获取当前PATH环境变量"
+                return False, "无法获取当前 PATH 环境变量"
             
             # 检查是否已包含%MYSQL_HOME%\bin
             mysql_bin_path = "%MYSQL_HOME%\\bin"
@@ -93,7 +102,7 @@ class EnvironmentHandler:
             # 检查是否已存在
             for path in path_list:
                 if path.strip() == mysql_bin_path:
-                    return True, f"PATH中已包含 {mysql_bin_path}"
+                    return True, f"PATH 中已包含 {mysql_bin_path}"
             
             # 添加到PATH末尾
             new_path = current_path + f";{mysql_bin_path}"
@@ -106,10 +115,10 @@ class EnvironmentHandler:
             # 广播环境变量变更
             self.broadcast_env_change()
             
-            return True, f"已将 {mysql_bin_path} 添加到系统PATH"
+            return True, f"已将 {mysql_bin_path} 添加到系统 PATH"
         except Exception as e:
-            self.logger.error(f"更新PATH环境变量失败: {e}")
-            return False, f"更新PATH环境变量失败: {str(e)}"
+            self.logger.error(f"更新 PATH 环境变量失败: {e}")
+            return False, f"更新 PATH 环境变量失败: {str(e)}"
     
     def set_version_specific_var(self, version, path):
         """
@@ -128,14 +137,7 @@ class EnvironmentHandler:
             var_name = f"MYSQL_HOME_V{major}_{minor}"
             
             # 设置环境变量
-            hkey = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, self.env_key_path, 0, reg.KEY_ALL_ACCESS)
-            reg.SetValueEx(hkey, var_name, 0, reg.REG_EXPAND_SZ, path)
-            reg.CloseKey(hkey)
-            
-            # 广播环境变量变更
-            self.broadcast_env_change()
-            
-            return True, f"已设置 {var_name} = {path}"
+            return self._set_environment_variable(var_name, path)
         except Exception as e:
             self.logger.error(f"设置版本特定环境变量失败: {e}")
             return False, f"设置版本特定环境变量失败: {str(e)}"
@@ -186,7 +188,7 @@ class EnvironmentHandler:
             
             return is_correct, current_mysql_home, version_path
         except Exception as e:
-            self.logger.error(f"检查MYSQL_HOME指向失败: {e}")
+            self.logger.error(f"检查 MYSQL_HOME 指向失败: {e}")
             return False, None, None
     
     def parse_version(self, version):
@@ -214,8 +216,8 @@ class EnvironmentHandler:
         :return: 版本号字符串（如 "8.0.32"）或None
         """
         try:
-            # 使用正则表达式从路径中匹配版本号
-            # 匹配格式如：mysql-8.0.32-winx64, MySQL-5.7.39, mysql5.6.47 等
+            # 正则表达式从路径中匹配版本号
+            # 格式如：mysql-8.0.32-winx64, MySQL-5.7.39, mysql5.6.47 等
             import os
             # 获取路径的最后一部分
             folder_name = os.path.basename(path)
@@ -257,7 +259,7 @@ class EnvironmentHandler:
         :return: 是否有管理员权限
         """
         try:
-            # 尝试打开需要管理员权限的注册表项
+            # 尝试打开注册表项
             hkey = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, self.env_key_path, 0, reg.KEY_ALL_ACCESS)
             reg.CloseKey(hkey)
             return True
