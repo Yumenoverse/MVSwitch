@@ -113,7 +113,7 @@ class MySQLServiceManager:
                 is_correct, current_value, expected_value = self.env_handler.check_mysql_home_pointing(version)
                 
                 if not is_correct:
-                    # 设置MYSQL_HOME指向正确的版本变量
+                    # 设置MYSQL_HOME为版本变量的实际值
                     result, msg = self.env_handler.set_mysql_home(expected_value)
                     if not result:
                         return False, f"设置MYSQL_HOME失败: {msg}"

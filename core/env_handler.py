@@ -166,7 +166,7 @@ class EnvironmentHandler:
     
     def check_mysql_home_pointing(self, version):
         """
-        检查MYSQL_HOME是否指向了正确的版本变量
+        检查MYSQL_HOME是否指向了正确的版本路径
         :param version: MySQL版本号，如 "8.0.32"
         :return: (是否正确指向, 当前值, 预期值)
         """
@@ -176,18 +176,15 @@ class EnvironmentHandler:
             if current_mysql_home is None:
                 return False, None, None
             
-            # 解析版本号
-            major, minor = self.parse_version(version)
-            if major is None or minor is None:
+            # 获取版本特定变量的实际值
+            version_path = self.get_version_specific_var(version)
+            if version_path is None:
                 return False, current_mysql_home, None
             
-            # 生成预期的环境变量引用
-            expected_value = f"%MYSQL_HOME_V{major}_{minor}%"
+            # 检查是否指向正确的实际路径
+            is_correct = current_mysql_home.strip() == version_path.strip()
             
-            # 检查是否指向正确
-            is_correct = current_mysql_home.strip() == expected_value
-            
-            return is_correct, current_mysql_home, expected_value
+            return is_correct, current_mysql_home, version_path
         except Exception as e:
             self.logger.error(f"检查MYSQL_HOME指向失败: {e}")
             return False, None, None
