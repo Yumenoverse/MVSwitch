@@ -1,6 +1,8 @@
 import customtkinter as ctk
 import json
 import logging
+import threading
+import os
 from core.manager import MySQLServiceManager
 from core.env_handler import EnvironmentHandler
 
@@ -46,7 +48,9 @@ class MainWindow:
         加载配置文件
         """
         try:
-            with open("config.json", "r", encoding="utf-8") as f:
+            # 使用绝对路径加载配置文件
+            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+            with open(config_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             logging.error(f"加载配置文件失败: {e}")
@@ -171,15 +175,24 @@ class MainWindow:
         
         # 添加控制按钮
         start_button = ctk.CTkButton(control_frame, text="启动服务", font=self.fonts["button"], 
-                                    command=lambda: self.service_manager.start_service(mysql_config["service_name"]))
+                                    command=lambda: threading.Thread(target=self.perform_service_action,
+                                                                     args=(mysql_config["service_name"], 
+                                                                           self.service_manager.start_service, 
+                                                                           start_button)).start())
         start_button.grid(row=0, column=0, padx=(0, 10))
         
         stop_button = ctk.CTkButton(control_frame, text="停止服务", font=self.fonts["button"], 
-                                   command=lambda: self.service_manager.stop_service(mysql_config["service_name"]))
+                                   command=lambda: threading.Thread(target=self.perform_service_action,
+                                                                    args=(mysql_config["service_name"], 
+                                                                          self.service_manager.stop_service, 
+                                                                          stop_button)).start())
         stop_button.grid(row=0, column=1, padx=(0, 10))
         
         restart_button = ctk.CTkButton(control_frame, text="重启服务", font=self.fonts["button"], 
-                                      command=lambda: self.service_manager.restart_service(mysql_config["service_name"]))
+                                      command=lambda: threading.Thread(target=self.perform_service_action,
+                                                                       args=(mysql_config["service_name"], 
+                                                                             self.service_manager.restart_service, 
+                                                                             restart_button)).start())
         restart_button.grid(row=0, column=2, padx=(0, 10))
         
         # 编辑按钮
@@ -255,6 +268,48 @@ class MainWindow:
         self.log_text.configure(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.configure(state="disabled")
+    
+    def perform_service_action(self, service_name, action_func, button=None):
+        """
+        执行服务操作并处理结果
+        :param service_name: 服务名称
+        :param action_func: 服务操作函数
+        :param button: 触发操作的按钮，用于状态显示
+        """
+        # 如果提供了按钮，禁用它并更改文本
+        if button:
+            original_text = button.cget("text")
+            button.configure(text="处理中...", state="disabled")
+        
+        try:
+            # 执行服务操作
+            # 先找到对应的配置，获取版本号
+            version = None
+            for config in self.config["mysql_versions"]:
+                if config["service_name"] == service_name:
+                    version = config["version"]
+                    break
+            
+            if version:
+                # 如果有版本号，传递给action_func
+                success, message = action_func(service_name, version)
+            else:
+                # 兼容旧版调用方式
+                success, message = action_func(service_name)
+            
+            # 记录日志
+            logging.info(message)
+            
+            # 更新服务状态
+            self.refresh_service_status()
+        except Exception as e:
+            success = False
+            message = f"操作失败: {str(e)}"
+            logging.error(message)
+        finally:
+            # 如果提供了按钮，恢复原始状态
+            if button:
+                button.configure(text=original_text, state="normal")
 
     def refresh_service_status(self):
         """
@@ -302,16 +357,18 @@ class MainWindow:
         self.name_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
         self.name_entry.grid(row=0, column=1, padx=20, pady=(20, 10))
         
-        # 版本
+        # 版本 - 改为只读
         version_label = ctk.CTkLabel(dialog, text="版本:", width=label_width, font=self.fonts["body"])
         version_label.grid(row=1, column=0, padx=20, pady=10, sticky="w")
         self.version_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
+        self.version_entry.configure(state="readonly")  # 设置为只读
         self.version_entry.grid(row=1, column=1, padx=20, pady=10)
         
-        # 服务名称
+        # 服务名称 - 改为只读
         service_name_label = ctk.CTkLabel(dialog, text="服务名称:", width=label_width, font=self.fonts["body"])
         service_name_label.grid(row=2, column=0, padx=20, pady=10, sticky="w")
         self.service_name_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
+        self.service_name_entry.configure(state="readonly")  # 设置为只读
         self.service_name_entry.grid(row=2, column=1, padx=20, pady=10)
         
         # 路径
@@ -319,6 +376,10 @@ class MainWindow:
         path_label.grid(row=3, column=0, padx=20, pady=10, sticky="w")
         self.path_entry = ctk.CTkEntry(dialog, width=entry_width, font=self.fonts["body"])
         self.path_entry.grid(row=3, column=1, padx=20, pady=10)
+        
+        # 添加路径输入变化事件监听
+        self.path_entry.bind("<KeyRelease>", lambda event: self.auto_parse_path(dialog))
+        self.path_entry.bind("<FocusOut>", lambda event: self.auto_parse_path(dialog))
         
         # 端口
         port_label = ctk.CTkLabel(dialog, text="端口号:", width=label_width, font=self.fonts["body"])
@@ -329,8 +390,13 @@ class MainWindow:
         # 如果是编辑模式，填充现有数据
         if mysql_config:
             self.name_entry.insert(0, mysql_config["name"])
+            # 版本和服务名设置为只读模式下的文本
+            self.version_entry.configure(state="normal")
             self.version_entry.insert(0, mysql_config["version"])
+            self.version_entry.configure(state="readonly")
+            self.service_name_entry.configure(state="normal")
             self.service_name_entry.insert(0, mysql_config["service_name"])
+            self.service_name_entry.configure(state="readonly")
             self.path_entry.insert(0, mysql_config["path"])
             self.port_entry.insert(0, mysql_config["port"])
         
@@ -354,6 +420,52 @@ class MainWindow:
         
         # 刷新服务状态
         self.refresh_service_status()
+    
+    def auto_parse_path(self, dialog):
+        """
+        自动解析路径，提取版本号并生成服务名
+        :param dialog: 对话框实例
+        """
+        # 清除可能存在的错误消息
+        for widget in dialog.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and widget.cget("text_color") == "red":
+                widget.destroy()
+        
+        # 获取路径
+        path = self.path_entry.get().strip()
+        if not path:
+            return
+        
+        # 从路径中提取版本号
+        version = self.env_handler.extract_version_from_path(path)
+        if version:
+            # 生成服务名
+            service_name = self.env_handler.generate_service_name(version)
+            
+            # 更新版本号和服务名输入框（需要先临时解除只读状态）
+            self.version_entry.configure(state="normal")
+            self.version_entry.delete(0, "end")
+            self.version_entry.insert(0, version)
+            self.version_entry.configure(state="readonly")
+            
+            self.service_name_entry.configure(state="normal")
+            self.service_name_entry.delete(0, "end")
+            if service_name:
+                self.service_name_entry.insert(0, service_name)
+            self.service_name_entry.configure(state="readonly")
+        else:
+            # 显示版本解析错误
+            error_label = ctk.CTkLabel(dialog, text="无法从路径中识别MySQL版本号", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            
+            # 清空版本号和服务名
+            self.version_entry.configure(state="normal")
+            self.version_entry.delete(0, "end")
+            self.version_entry.configure(state="readonly")
+            
+            self.service_name_entry.configure(state="normal")
+            self.service_name_entry.delete(0, "end")
+            self.service_name_entry.configure(state="readonly")
         
     def save_mysql_config(self, dialog, mysql_config, index):
         """
@@ -363,18 +475,72 @@ class MainWindow:
         :param index: 配置索引
         """
         # 获取输入值
-        name = self.name_entry.get()
-        version = self.version_entry.get()
-        service_name = self.service_name_entry.get()
-        path = self.path_entry.get()
-        port = self.port_entry.get()
+        name = self.name_entry.get().strip()
+        path = self.path_entry.get().strip()
+        port = self.port_entry.get().strip()
+        
+        # 清除可能存在的错误消息
+        for widget in dialog.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and widget.cget("text_color") == "red":
+                widget.destroy()
+        
+        # 从路径中重新提取版本号和生成服务名（确保最新）
+        version = self.env_handler.extract_version_from_path(path)
+        if not version:
+            # 显示版本解析错误
+            error_label = ctk.CTkLabel(dialog, text="无法从路径中识别MySQL版本号，请检查路径格式", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            return
+        
+        # 生成服务名
+        service_name = self.env_handler.generate_service_name(version)
+        if not service_name:
+            # 显示服务名生成错误
+            error_label = ctk.CTkLabel(dialog, text="无法根据版本号生成服务名", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            return
         
         # 验证输入
-        if not all([name, version, service_name, path, port]):
+        if not all([name, path, port]):
             # 显示错误消息
             error_label = ctk.CTkLabel(dialog, text="请填写所有必填字段", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             return
+        
+        # 验证端口号
+        try:
+            port_num = int(port)
+            if port_num < 1 or port_num > 65535:
+                raise ValueError("端口号必须在1-65535之间")
+        except ValueError as e:
+            error_label = ctk.CTkLabel(dialog, text=f"端口号无效: {str(e)}", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            return
+        
+        # 验证路径是否存在
+        import os
+        if not os.path.exists(path):
+            error_label = ctk.CTkLabel(dialog, text="MySQL安装路径不存在", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            return
+        
+        # 验证是否包含mysqld.exe
+        mysqld_path = os.path.join(path, "bin", "mysqld.exe")
+        if not os.path.exists(mysqld_path):
+            error_label = ctk.CTkLabel(dialog, text="该路径下未找到mysqld.exe", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            return
+        
+        # 更新显示的版本号和服务名（确保保存的是最新解析的结果）
+        self.version_entry.configure(state="normal")
+        self.version_entry.delete(0, "end")
+        self.version_entry.insert(0, version)
+        self.version_entry.configure(state="readonly")
+        
+        self.service_name_entry.configure(state="normal")
+        self.service_name_entry.delete(0, "end")
+        self.service_name_entry.insert(0, service_name)
+        self.service_name_entry.configure(state="readonly")
         
         # 创建新配置
         new_config = {
@@ -382,7 +548,7 @@ class MainWindow:
             "version": version,
             "service_name": service_name,
             "path": path,
-            "port": int(port)
+            "port": port_num
         }
         
         # 更新配置
@@ -395,8 +561,13 @@ class MainWindow:
         
         # 保存到文件
         try:
-            with open("config.json", "w", encoding="utf-8") as f:
+            # 使用绝对路径保存配置文件
+            config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.json")
+            with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)
+            
+            # 保存成功后，设置对应的版本变量
+            self.env_handler.set_version_specific_var(version, path)
             
             # 刷新UI
             self.refresh_ui()
