@@ -10,7 +10,7 @@ class MainWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("MVSwitch")
-        self.root.geometry("1200x700")
+        self.root.geometry("1100x700")
         self.root.minsize(900, 500)
         
         # 初始化服务管理器和环境处理器
