@@ -504,7 +504,7 @@ class MainWindow:
     
     def auto_parse_path(self, dialog):
         """
-        自动解析路径，提取版本号并生成服务名
+        自动解析路径，提取版本号并查找服务名
         :param dialog: 对话框实例
         """
         # 清除可能存在的错误消息
@@ -520,15 +520,20 @@ class MainWindow:
         # 从路径中提取版本号
         version = self.env_handler.extract_version_from_path(path)
         if version:
-            # 生成服务名
-            service_name = self.env_handler.generate_service_name(version)
-            
-            # 更新版本号和服务名标签
-            dialog.controls["version_display_label"].configure(text=version)
+            # 尝试根据路径查找实际的服务名
+            service_name = self.env_handler.find_service_by_path(path)
             
             if service_name:
+                # 更新版本号和服务名标签
+                dialog.controls["version_display_label"].configure(text=version)
                 dialog.controls["service_name_display_label"].configure(text=service_name)
             else:
+                # 显示服务查找错误
+                error_label = ctk.CTkLabel(dialog, text="未找到该服务，请检查服务配置", text_color="red", font=self.fonts["body"])
+                error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+                
+                # 清空版本号和服务名标签
+                dialog.controls["version_display_label"].configure(text="")
                 dialog.controls["service_name_display_label"].configure(text="")
         else:
             # 显示版本解析错误
@@ -599,6 +604,13 @@ class MainWindow:
         mysqld_path = os.path.join(path, "bin", "mysqld.exe")
         if not os.path.exists(mysqld_path):
             error_label = ctk.CTkLabel(dialog, text="该路径下未找到 mysqld.exe", text_color="red", font=self.fonts["body"])
+            error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
+            return
+        
+        # 验证服务是否存在
+        service_name = self.env_handler.find_service_by_path(path)
+        if not service_name:
+            error_label = ctk.CTkLabel(dialog, text="未找到该服务，请检查服务配置", text_color="red", font=self.fonts["body"])
             error_label.grid(row=6, column=0, columnspan=2, padx=20, pady=(0, 10))
             return
         

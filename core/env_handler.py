@@ -3,6 +3,8 @@ import win32con
 import winreg as reg
 import logging
 import re
+import win32serviceutil
+import win32service
 
 class EnvironmentHandler:
     def __init__(self):
@@ -251,6 +253,76 @@ class EnvironmentHandler:
             return f"MySQL{major}{minor}"
         except Exception as e:
             self.logger.error(f"生成服务名失败: {e}")
+            return None
+    
+    def find_service_by_path(self, mysql_path):
+        """
+        根据MySQL安装路径查找匹配的服务名
+        :param mysql_path: MySQL安装路径，如 "D:\mysql-8.0.32-winx64"
+        :return: 匹配的服务名或None
+        """
+        try:
+            import os
+            import winreg as reg
+            
+            # 构建期望的mysqld.exe路径
+            expected_mysqld_path = os.path.normpath(os.path.join(mysql_path, "bin", "mysqld")).lower()
+            
+            # 打开服务注册表项
+            services_key = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services", 0, reg.KEY_READ)
+            
+            try:
+                # 遍历所有服务
+                index = 0
+                while True:
+                    try:
+                        # 获取服务名
+                        service_name = reg.EnumKey(services_key, index)
+                        index += 1
+                        
+                        # 跳过非MySQL相关服务（可选，为了提高效率）
+                        if not service_name.lower().startswith("mysql"):
+                            continue
+                        
+                        # 打开服务的注册表项
+                        service_key = reg.OpenKey(services_key, service_name, 0, reg.KEY_READ)
+                        
+                        try:
+                            # 获取ImagePath值（服务可执行文件路径）
+                            image_path, _ = reg.QueryValueEx(service_key, "ImagePath")
+                            
+                            # 清理路径（去除引号和可能的参数）
+                            if image_path.startswith('"') and '"' in image_path[1:]:
+                                image_path = image_path[1:image_path.index('"', 1)]
+                            else:
+                                # 没有引号，取第一个空格之前的部分
+                                image_path = image_path.split()[0]
+                            
+                            # 标准化路径并转换为小写进行比较
+                            normalized_path = os.path.normpath(image_path).lower()
+                            
+                            # 检查是否匹配期望的mysqld.exe路径
+                            if normalized_path == expected_mysqld_path:
+                                return service_name
+                                
+                        except Exception:
+                            # 跳过无法读取ImagePath的服务
+                            pass
+                        finally:
+                            reg.CloseKey(service_key)
+                            
+                    except OSError:
+                        # 没有更多服务了
+                        break
+                        
+            finally:
+                reg.CloseKey(services_key)
+                
+            # 如果没有找到匹配的服务，返回None
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"根据路径查找服务失败: {e}")
             return None
     
     def verify_admin_rights(self):
