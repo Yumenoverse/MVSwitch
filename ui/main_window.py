@@ -10,7 +10,7 @@ class MainWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("MVSwitch")
-        self.root.geometry("1100x700")
+        self.root.geometry("1200x700")
         self.root.minsize(900, 500)
         
         # 初始化服务管理器和环境处理器
@@ -114,8 +114,8 @@ class MainWindow:
         """
         创建侧边栏内容
         """
-        # Logo (使用文字替代)
-        logo_label = ctk.CTkLabel(self.sidebar, text="MVSwitch", font=self.fonts["title"])
+        # Logo
+        logo_label = ctk.CTkLabel(self.sidebar, text="          MVSwitch          ", font=self.fonts["title"])
         logo_label.pack(pady=30, padx=20)
         
         # 服务状态总览标题
