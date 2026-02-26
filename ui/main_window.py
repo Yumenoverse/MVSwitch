@@ -3,18 +3,18 @@ import json
 import logging
 import threading
 import os
-from core.manager import MySQLServiceManager
+from core.manager import MVSwitchServiceManager
 from core.env_handler import EnvironmentHandler
 
 class MainWindow:
     def __init__(self, root):
         self.root = root
-        self.root.title("MySQL Context Manager")
+        self.root.title("MVSwitch")
         self.root.geometry("1200x700")
         self.root.minsize(900, 500)
         
         # 初始化服务管理器和环境处理器
-        self.service_manager = MySQLServiceManager()
+        self.service_manager = MVSwitchServiceManager()
         self.env_handler = EnvironmentHandler()
         
         # 加载配置
@@ -115,7 +115,7 @@ class MainWindow:
         创建侧边栏内容
         """
         # Logo (使用文字替代)
-        logo_label = ctk.CTkLabel(self.sidebar, text="MySQL Context Manager", font=self.fonts["title"])
+        logo_label = ctk.CTkLabel(self.sidebar, text="MVSwitch", font=self.fonts["title"])
         logo_label.pack(pady=30, padx=20)
         
         # 服务状态总览标题
@@ -375,8 +375,11 @@ class MainWindow:
                     version = config["version"]
                     break
             
-            # 直接传递版本号（可能为None），所有服务操作方法都支持
-            success, message = action_func(service_name, version)
+            # 获取所有服务名称列表
+            start_services = [config["service_name"] for config in self.config["mysql_versions"]]
+            
+            # 直接传递版本号（可能为None）和服务名称列表
+            success, message = action_func(service_name, version, start_services=start_services)
             
             # 记录日志
             logging.info(message)
