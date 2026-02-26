@@ -128,9 +128,7 @@ class MainWindow:
             status_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
             status_frame.pack(fill="x", padx=20, pady=5)
             
-            # 检查是否为当前环境
-            is_current = self.current_env == mysql_config["path"]
-            font = ctk.CTkFont(family="Microsoft YaHei UI", size=14, weight="bold" if is_current else "normal")
+            font = ctk.CTkFont(family="Microsoft YaHei UI", size=14, weight="normal")
             
             name_label = ctk.CTkLabel(status_frame, text=mysql_config["name"], font=font)
             name_label.pack(side="left")
